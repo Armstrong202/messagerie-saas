@@ -20,6 +20,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const getUser = async () => {
+      if (!supabase) return
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
         router.push('/login')
@@ -31,14 +32,18 @@ export default function Dashboard() {
 
     getUser()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) router.push('/login')
-    })
-
-    return () => subscription.unsubscribe()
+    let subscriptionCleanup: VoidFunction | undefined
+    if (supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (!session) router.push('/login')
+      })
+      subscriptionCleanup = () => subscription.unsubscribe()
+    }
+    return subscriptionCleanup
   }, [router])
 
   const fetchVoicemails = async (userId: string) => {
+    if (!supabase) return
     const { data } = await supabase
       .from('voicemails')
       .select('*')
@@ -76,6 +81,9 @@ export default function Dashboard() {
     const audioBlobReal = new Blob([new ArrayBuffer(0)], { type: 'audio/webm' }) // Replace with MediaRecorder blob
     formData.append('audio', audioBlobReal, 'voicemail.webm')
     formData.append('transcription', transcription)
+    formData.append('user_id', user!.id)
+    formData.append('sender', 'Test sender')
+
 
     const response = await fetch('/api/transcribe', {
       method: 'POST',
@@ -88,12 +96,15 @@ export default function Dashboard() {
   }
 
   const deleteVoicemail = async (id: string) => {
+    if (!supabase) return
     await supabase.from('voicemails').delete().eq('id', id)
     fetchVoicemails(user!.id)
   }
 
   const logout = async () => {
-    await supabase.auth.signOut()
+    if (supabase) {
+      await supabase.auth.signOut()
+    }
     router.push('/login')
   }
 

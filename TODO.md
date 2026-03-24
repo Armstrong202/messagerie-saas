@@ -1,25 +1,17 @@
-# Voicemail SaaS TODO
+# TODO: Fix Vercel Build - TypeScript Errors Fixed
+## Current Progress
+- [x] 1. Create TODO.md with plan breakdown (done)
+- [x] 2. Edit package.json to remove @supabase/auth-helpers-nextjs
+- [x] 3. Delete package-lock.json
+- [x] 4. Run `npm install`
+- [x] 5. Run `npm run build` to test
+- [x] 6. Update TODO.md with completion
+- [x] 7. Fix TypeScript errors in admin/page.tsx (added proper async state handling)
+- [ ] 8. Run `npm run build` to verify
+- [ ] 9. Commit/push changes for Vercel redeploy
 
-## Pending Steps
-- [x] Step 2: Set up Supabase client & env
-- [x] Step 3: Auth pages (login/signup)
-- [x] Step 4: Dashboard with recording
-- [ ] Step 3: Integrate Supabase auth (signup/login)
-- [ ] Step 4: Create dashboard layout
-- [ ] Step 5: Voicemail recording component (Web Speech API)
-- [ ] Step 6: API route for upload/transcription (OpenAI/AssemblyAI)
-- [ ] Step 7: Inbox page with messages
-- [ ] Step 8: Reply functionality (TTS/SMS via Twilio)
-- [ ] Step 9: Stripe integration
-- [ ] Step 10: Admin panel
-- [ ] Step 11: Deploy
-
-## Completed Steps
-- [x] Step 1: Next.js project created
-- [x] Step 2: Supabase config (keys + client)
-- [x] Step 3-4: Auth + Dashboard UI
-- [x] Step 5: Voicemail recording (Speech API)
-
-## Pending (production)
-- [ ] Add API keys to .env.local : OpenAI, Stripe, Twilio, AssemblyAI
-- [ ] Deploy Vercel
+## Next Steps After Approval
+1. Implement Supabase server client fixes (lib/supabase.ts, api/transcribe/route.ts)
+2. `npm run build` verify
+3. git commit/push
+4. Mark complete

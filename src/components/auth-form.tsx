@@ -26,6 +26,7 @@ const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
   })
 
   const onSubmit = async (data: LoginForm) => {
+    if (!supabase) return
     setLoading(true)
     const { error } = type === 'login' 
       ? await supabase.auth.signInWithPassword(data)

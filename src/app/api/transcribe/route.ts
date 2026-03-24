@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
-import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@/lib/server'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 })
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
 export async function POST(req: NextRequest) {
+  const supabase = createServerClient()
   try {
     const formData = await req.formData()
     const file = formData.get('audio') as File
     const transcriptionText = formData.get('transcription') as string
+    const sender = formData.get('sender') || 'Inconnu'
+    const user_id = formData.get('user_id') as string
 
     // Upload audio to Supabase Storage
     const fileExt = file.name.split('.').pop()
@@ -38,16 +36,18 @@ export async function POST(req: NextRequest) {
     }
 
     // Save to DB
-    const { data: voicemail } = await supabase
+    const { data: voicemail, error: dbError } = await supabase
       .from('voicemails')
       .insert({
-        user_id: (await supabase.auth.getUser()).data.user!.id,
+        user_id,
         audio_url: supabase.storage.from('voicemails').getPublicUrl(fileName).data.publicUrl,
         transcription: finalTranscription,
-        sender: formData.get('sender') as string || 'Inconnu',
+        sender,
       })
       .select()
       .single()
+
+    if (dbError) throw dbError
 
     return NextResponse.json(voicemail)
   } catch (error) {

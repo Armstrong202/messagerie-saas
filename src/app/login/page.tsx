@@ -10,6 +10,7 @@ export default function Login() {
   const router = useRouter()
 
   useEffect(() => {
+    if (!supabase) return
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(!!session)
       if (session) router.push('/dashboard')
