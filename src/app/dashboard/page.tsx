@@ -72,7 +72,7 @@ export default function Dashboard() {
       setAudioChunks([])
       setIsRecording(true)
     } catch (err) {
-      console.error('Microphone access denied', err)
+      // console.error('Microphone access denied', err)
     }
   }
 

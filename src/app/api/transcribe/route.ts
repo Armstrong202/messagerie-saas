@@ -3,20 +3,22 @@ import OpenAI from 'openai'
 import { createServerClient } from '@/lib/server'
 
 export async function POST(req: NextRequest) {
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const user_id = session.user.id
   const now = Date.now()
   const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'anonymous'
   
-  // AUTH CHECK
-  const formData = await req.formData()
-  const user_id = formData.get('user_id') as string
-  if (!user_id) {
-    return NextResponse.json({ error: 'User ID required' }, { status: 401 })
-  }
-
   // RATE LIMIT 5/min IP
   const rateKey = `transcribe:${clientIp}`
-  const rateData = (global as any).rateLimits?.[rateKey] || { count: 0, reset: now + 60*1000 }
+  const rateData: { count: number; reset: number } = (globalThis as any).rateLimits?.[rateKey] || { count: 0, reset: now + 60*1000 }
   if (now > rateData.reset) {
     rateData.count = 0
     rateData.reset = now + 60*1000
@@ -25,13 +27,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
   }
   rateData.count++
-  ;(global as any).rateLimits ||= {}
-  ;(global as any).rateLimits[rateKey] = rateData
+  ;(globalThis as any).rateLimits ||= {}
+  ;(globalThis as any).rateLimits[rateKey] = rateData
 
   const openai = process.env.OPENAI_API_KEY ? new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
   }) : null
   
+  const formData = await req.formData()
   try {
     const file = formData.get('audio') as File
     if (!file) {
