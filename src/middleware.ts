@@ -1,40 +1,79 @@
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import env from '@/lib/env'
+import { createServerClient } from "@supabase/ssr";
+import { type NextRequest, NextResponse } from "next/server";
+
+const PUBLIC_ROUTES = [
+  "/login",
+  "/signup",
+  "/",
+];
+
+const ADMIN_ROUTES = ["/admin"];
 
 export async function middleware(request: NextRequest) {
-  const supabase = createMiddlewareClient(request)
+  let supabaseResponse = NextResponse.next({ request });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const pathname = request.nextUrl.pathname
+  const { pathname } = request.nextUrl;
 
-  // Protect dashboard and admin
-  if (pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) {
-    if (!session) {
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
+  // Allow public routes
+  const isPublic = PUBLIC_ROUTES.some(
+    (r) => pathname === r || pathname.startsWith(r + "/")
+  );
+  if (isPublic) return supabaseResponse;
 
-    // Optional: role check for admin
-  // TODO: Admin role check from user_metadata
-  // if (pathname.startsWith('/admin') && !session.user.user_metadata?.role === 'admin') {
-  //   return NextResponse.redirect(new URL('/dashboard', request.url))
-  // }
+  // Redirect unauthenticated users to login
+  if (!user) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next({
-    request,
-    headers: request.headers,
-  })
+  // Check admin routes — fetch role from DB
+  const isAdmin = ADMIN_ROUTES.some((r) => pathname.startsWith(r));
+  if (isAdmin) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile || profile.role !== "admin") {
+      const dashboardUrl = request.nextUrl.clone();
+      dashboardUrl.pathname = "/dashboard";
+      return NextResponse.redirect(dashboardUrl);
+    }
+  }
+
+  return supabaseResponse;
 }
 
 export const config = {
   matcher: [
-    '/dashboard/:path*',
-    '/admin/:path*',
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
-}
-
+};

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
-import { Mic, MessageCircle, Play, Trash2 } from 'lucide-react'
+import { Mic, MessageCircle, Play, Trash2, User, Settings } from 'lucide-react'
 import { Database } from '@/types/supabase'
 
 type Voicemail = Database['public']['Tables']['voicemails']['Row']
@@ -15,7 +15,6 @@ export default function Dashboard() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const [transcription, setTranscription] = useState('')
   const [voicemails, setVoicemails] = useState<Voicemail[]>([])
-  const [recognition, setRecognition] = useState<any>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -53,7 +52,6 @@ export default function Dashboard() {
   }
 
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
-  const [audioChunks, setAudioChunks] = useState<BlobPart[]>([])
 
   const startRecording = async () => {
     try {
@@ -69,10 +67,9 @@ export default function Dashboard() {
       
       recorder.start()
       setMediaRecorder(recorder)
-      setAudioChunks([])
       setIsRecording(true)
     } catch (err) {
-      // console.error('Microphone access denied', err)
+      alert('Microphone requis')
     }
   }
 
@@ -83,12 +80,12 @@ export default function Dashboard() {
     }
     setIsRecording(false)
 
-    if (audioBlob) {
+    if (audioBlob && user) {
       const formData = new FormData()
       formData.append('audio', audioBlob, 'voicemail.webm')
       formData.append('transcription', transcription)
       formData.append('user_id', user!.id)
-      formData.append('sender', prompt('Nom de l\'expéditeur (optionnel):') || 'Inconnu')
+      formData.append('sender', prompt('Nom expéditeur:') || 'Anonyme')
 
       const response = await fetch('/api/transcribe', {
         method: 'POST',
@@ -111,78 +108,133 @@ export default function Dashboard() {
   }
 
   const logout = async () => {
-    if (supabase) {
-      await supabase.auth.signOut()
-    }
+    await supabase.auth.signOut()
     router.push('/login')
   }
 
-  if (!user) return <div>Chargement...</div>
+  if (!user) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="glass p-12 rounded-3xl text-center animate-pulse">
+        <div className="w-24 h-24 mx-auto bg-gradient-to-r from-indigo-400 to-blue-400 rounded-2xl flex items-center justify-center mb-6">
+          <Mic className="w-12 h-12 text-white" />
+        </div>
+        <p className="gradient-text text-2xl font-bold mb-4">Chargement...</p>
+      </div>
+    </div>
+  )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100 p-8">
-      <header className="max-w-6xl mx-auto flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">
-            Messagerie Vocale
-          </h1>
-          <p className="text-gray-600">Bonjour, {user.email}</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6 lg:p-12 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(120,119,198,0.3),transparent),radial-gradient(circle_at_80%_20%,rgba(255,119,198,0.3),transparent)]" />
+      
+      <header className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-12 pt-8 relative z-10">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-2xl">
+            <Mic className="w-8 h-8 text-white drop-shadow-md" />
+          </div>
+          <div>
+            <h1 className="text-4xl lg:text-5xl font-black gradient-text drop-shadow-lg">
+              Messagerie IA
+            </h1>
+            <p className="text-xl text-gray-600 font-medium">Bonjour, {user.email?.split('@')[0]}</p>
+          </div>
         </div>
-        <Button onClick={logout} variant="outline">Déconnexion</Button>
+        <div className="flex gap-3">
+          <Button variant="ghost" size="icon" className="hover:bg-white/50">
+            <User className="w-5 h-5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="hover:bg-white/50">
+            <Settings className="w-5 h-5" />
+          </Button>
+          <Button onClick={logout} className="bg-white/80 backdrop-blur-sm hover:bg-white border-2 border-indigo-200">
+            Déconnexion
+          </Button>
+        </div>
       </header>
 
-      <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-8">
-        {/* Recording Section */}
-        <div className="bg-white rounded-2xl p-8 shadow-xl">
-          <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-            <Mic className="w-8 h-8 text-indigo-600" />
-            Nouveau message
-          </h2>
-          <div className="space-y-4">
-            <div className="bg-gray-50 p-6 rounded-xl text-center">
-              <p className="text-3xl font-semibold text-gray-900 mb-4">{transcription || 'Cliquez pour parler...'}</p>
-              <div className="flex gap-3 justify-center">
-                <Button onClick={startRecording} disabled={isRecording} size="lg">
-                  <Mic className="w-5 h-5" />
-                  Démarrer
+      <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 relative z-10">
+        {/* Recording Hero */}
+        <div className="glass-card p-10 lg:p-12 rounded-3xl shadow-2xl hover:shadow-3xl transition-all duration-500 animate-float">
+          <div className="text-center mb-10">
+            <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-2xl btn-glow">
+              <Mic className="w-12 h-12 text-white" />
+            </div>
+            <h2 className="text-3xl font-black gradient-text mb-4">Nouveau Voicemail</h2>
+            <p className="text-lg text-gray-600">Enregistrez instantanément</p>
+          </div>
+          
+          <div className="space-y-6">
+            <div className="bg-white/60 backdrop-blur-sm p-8 rounded-3xl border border-white/40 shadow-xl">
+              <div className="h-32 bg-gradient-to-r from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mb-6 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-indigo-400/20 to-purple-400/20 animate-pulse" />
+                <p className="gradient-text text-2xl font-black relative z-10 drop-shadow-lg">
+                  {transcription || 'Appuyez pour parler...'}
+                </p>
+              </div>
+              <div className="flex gap-4 justify-center">
+                <Button onClick={startRecording} disabled={isRecording} size="lg" className="group bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-2xl btn-glow px-8 py-6 text-lg font-bold min-h-[56px]">
+                  <Mic className="w-6 h-6 group-hover:scale-110 transition-transform mr-2" />
+                  {isRecording ? 'Enregistrement...' : 'Démarrer'}
                 </Button>
-                <Button onClick={stopRecording} disabled={!isRecording} variant="destructive" size="lg">
-                  <Play className="w-5 h-5" />
+                <Button onClick={stopRecording} disabled={!isRecording} variant="destructive" size="lg" className="group bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-2xl px-8 py-6 text-lg font-bold min-h-[56px]">
+                  <Play className="w-6 h-6 group-hover:scale-110 transition-transform mr-2" />
                   Envoyer
                 </Button>
               </div>
             </div>
-            <p className="text-sm text-gray-500 text-center">
-              Utilise la reconnaissance vocale du navigateur (démo). Production: OpenAI Whisper.
+            <p className="text-center text-sm text-gray-500 opacity-75">
+              ✅ Whisper IA + stockage cloud automatique
             </p>
           </div>
         </div>
 
-        {/* Inbox */}
-        <div className="bg-white rounded-2xl p-8 shadow-xl">
-          <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-            <MessageCircle className="w-8 h-8 text-emerald-600" />
-            Boîte de réception ({voicemails.length})
-          </h2>
-          <div className="space-y-4 max-h-96 overflow-y-auto">
+        {/* Inbox Premium */}
+        <div className="glass-card p-10 lg:p-12 rounded-3xl shadow-2xl">
+          <div className="flex items-center gap-3 mb-10">
+            <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-xl">
+              <MessageCircle className="w-6 h-6 text-white" />
+            </div>
+            <h2 className="text-3xl font-black gradient-text">Inbox <span className="text-2xl font-normal text-gray-600">({voicemails.length})</span></h2>
+          </div>
+
+          <div className="space-y-4 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-primary/50 scrollbar-track-transparent pr-2">
             {voicemails.map((vm) => (
-              <div key={vm.id} className="flex gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100">
-                <audio controls src={vm.audio_url} className="flex-1" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm truncate">{vm.sender || 'Inconnu'}</p>
-                  <p className="text-sm line-clamp-2 text-gray-600">{vm.transcription}</p>
+              <div key={vm.id} className="group hover:scale-[1.02] transition-all duration-200 bg-white/70 backdrop-blur-sm p-6 rounded-2xl border border-white/50 hover:border-indigo-200 hover:shadow-xl">
+                <div className="flex gap-4 items-center">
+                  <div className="flex-shrink-0">
+                    <audio controls src={vm.audio_url} className="w-32 rounded-xl shadow-lg" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="px-3 py-1 bg-gradient-to-r from-indigo-100 to-purple-100 rounded-full text-xs font-semibold text-indigo-800">
+                        {vm.sender || 'Anonyme'}
+                      </div>
+                    </div>
+                    <p className="text-sm font-medium line-clamp-2 text-gray-800 mb-2 leading-relaxed">{vm.transcription}</p>
+                    <p className="text-xs text-gray-500">{new Date(vm.created_at).toLocaleString('fr-FR')}</p>
+                  </div>
+                  <Button variant="ghost" size="icon" className="hover:bg-red-500/20 hover:text-red-500 p-2" onClick={() => deleteVoicemail(vm.id!)}>
+                    <Trash2 className="w-5 h-5" />
+                  </Button>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => deleteVoicemail(vm.id!)}>
-                  <Trash2 className="w-4 h-4" />
-                </Button>
               </div>
             ))}
             {voicemails.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                Aucun message. Enregistrez-en un !
+              <div className="text-center py-20">
+                <MessageCircle className="w-20 h-20 mx-auto text-gray-300 mb-6 animate-bounce" />
+                <p className="text-2xl font-semibold text-gray-400 mb-2">Aucun message</p>
+                <p className="text-gray-500">Enregistrez votre premier voicemail !</p>
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto mt-20 relative z-10">
+        <div className="text-center">
+          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+            🔒 Sécurisé • ⚡ Rapide • 🤖 IA Whisper • ☁️ Cloud
+          </p>
         </div>
       </div>
     </div>
