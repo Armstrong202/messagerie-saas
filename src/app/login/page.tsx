@@ -79,7 +79,7 @@ export default function Login() {
             </div>
             <AuthForm type="login" onSuccess={() => router.push('/dashboard')} />
             <p className="text-center text-sm text-white/60 mt-8">
-              Nouveau ?&nbsp;
+Nouveau ?&amp;nbsp;
               <a href="/signup" className="font-bold text-indigo-300 hover:text-indigo-200 transition-all duration-200 underline underline-offset-2">
                 Créez un compte
               </a>

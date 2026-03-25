@@ -19,7 +19,7 @@ export default function Home() {
             <Link href="/login">Se connecter</Link>
           </Button>
           <Button asChild variant="outline" size="lg" className="w-full">
-            <Link href="/signup">S'inscrire gratuitement</Link>
+<Link href="/signup">S&apos;inscrire gratuitement</Link>
           </Button>
         </div>
         <p className="text-sm text-gray-500">
