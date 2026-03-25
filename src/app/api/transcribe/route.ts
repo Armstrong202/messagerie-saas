@@ -62,8 +62,6 @@ export async function POST(req: NextRequest) {
 
     if (uploadError) throw uploadError
 
-    if (error) throw error
-
     // Optional: OpenAI transcription
     let finalTranscription = transcriptionText
     if (openai) {
