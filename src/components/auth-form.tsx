@@ -26,13 +26,17 @@ const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
   })
 
   const onSubmit = async (data: LoginForm) => {
-    if (!supabase) return
+    if (!supabase) {
+      alert('Supabase not configured - check env vars')
+      return
+    }
     setLoading(true)
     const { error } = type === 'login' 
       ? await supabase.auth.signInWithPassword(data)
       : await supabase.auth.signUp(data)
     setLoading(false)
     if (!error) onSuccess()
+    else alert(error.message)
   }
 
   return (
