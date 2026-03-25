@@ -32,9 +32,9 @@ export default function AuthForm({ type, onSuccess }: AuthFormProps) {
   const [serverError, setServerError] = useState('')
   const schema = type === 'login' ? loginSchema : signupSchema
   type FormData = z.infer<typeof schema>
-  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm({
     resolver: zodResolver(schema)
-  })
+  } as any)
 
   const password = watch('password' as any)
   const confirmPassword = watch('confirmPassword' as any)
