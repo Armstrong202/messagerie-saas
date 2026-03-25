@@ -52,47 +52,56 @@ export default function Dashboard() {
     setVoicemails(data || [])
   }
 
-  const startRecording = () => {
-    const recognition = new (window as any).webkitSpeechRecognition()
-    recognition.continuous = true
-    recognition.interimResults = true
-    recognition.lang = 'fr-FR'
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
+  const [audioChunks, setAudioChunks] = useState<BlobPart[]>([])
 
-    recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((result: any) => result[0].transcript)
-        .join('')
-      setTranscription(transcript)
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      const chunks: BlobPart[] = []
+      
+      recorder.ondataavailable = (e) => chunks.push(e.data)
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' })
+        setAudioBlob(blob)
+      }
+      
+      recorder.start()
+      setMediaRecorder(recorder)
+      setAudioChunks([])
+      setIsRecording(true)
+    } catch (err) {
+      console.error('Microphone access denied', err)
     }
-
-    recognition.onend = () => setIsRecording(false)
-
-    recognition.start()
-    setRecognition(recognition)
-    setIsRecording(true)
   }
 
   const stopRecording = async () => {
-    recognition.stop()
+    if (mediaRecorder) {
+      mediaRecorder.stop()
+      mediaRecorder.stream.getTracks().forEach(track => track.stop())
+    }
     setIsRecording(false)
 
-// Real upload + transcription
-    const formData = new FormData()
-    const audioBlobReal = new Blob([new ArrayBuffer(0)], { type: 'audio/webm' }) // Replace with MediaRecorder blob
-    formData.append('audio', audioBlobReal, 'voicemail.webm')
-    formData.append('transcription', transcription)
-    formData.append('user_id', user!.id)
-    formData.append('sender', 'Test sender')
+    if (audioBlob) {
+      const formData = new FormData()
+      formData.append('audio', audioBlob, 'voicemail.webm')
+      formData.append('transcription', transcription)
+      formData.append('user_id', user!.id)
+      formData.append('sender', prompt('Nom de l\'expéditeur (optionnel):') || 'Inconnu')
 
-
-    const response = await fetch('/api/transcribe', {
-      method: 'POST',
-      body: formData
-    })
-    const data = await response.json()
-    if (data.id) fetchVoicemails(user!.id)
-    
-    if (data) fetchVoicemails(user!.id)
+      const response = await fetch('/api/transcribe', {
+        method: 'POST',
+        body: formData
+      })
+      if (response.ok) {
+        setTranscription('')
+        fetchVoicemails(user!.id)
+      } else {
+        const err = await response.json()
+        alert('Erreur: ' + err.error)
+      }
+    }
   }
 
   const deleteVoicemail = async (id: string) => {

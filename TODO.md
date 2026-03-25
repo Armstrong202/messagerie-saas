@@ -1,13 +1,14 @@
-# TODO COMPLETE ✅
+# TODO: Code Review & Improvements ✅ IN PROGRESS
 
-**npm run build:** SUCCESS
+**Audit & Fix Plan (Approved):**
+- [x] src/lib/env.ts: Zod validation
+- [x] src/lib/supabase.ts & server.ts: env safe
 
-**Push:** main@944480d → GitHub → Vercel deployed
+**Remaining:**
+- [ ] 1. transcribe/route.ts: Rate limit, file size 10MB
+- [ ] 2. auth-form.tsx: Password confirm signup, better UX
+- [ ] 3. dashboard/page.tsx: Real MediaRecorder audio (not speech demo)
+- [ ] 4. admin/page.tsx: Auth guard (admin only)
+- [ ] 5. Push all → Vercel
 
-**API Config:**
-- Supabase: src/lib/supabase.ts (keys + env fallback)
-- OpenAI: src/app/api/transcribe/route.ts (optional w/ env)
-
-**Next:** Vercel Env Vars: SUPABASE_URL, NEXT_PUBLIC_SUPABASE_URL/ANON_KEY, OPENAI_API_KEY, SUPABASE_SERVICE_ROLE_KEY
-
-**Status:** Signup/login/dashboard/admin/voicemail READY
+**Step 1:** Implementing...

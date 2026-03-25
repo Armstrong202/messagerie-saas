@@ -4,6 +4,8 @@ import { createServerClient } from '@/lib/server'
 
 export async function POST(req: NextRequest) {
   const supabase = createServerClient()
+  const now = Date.now()
+  const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'anonymous'
   
   // AUTH CHECK
   const formData = await req.formData()
@@ -11,6 +13,20 @@ export async function POST(req: NextRequest) {
   if (!user_id) {
     return NextResponse.json({ error: 'User ID required' }, { status: 401 })
   }
+
+  // RATE LIMIT 5/min IP
+  const rateKey = `transcribe:${clientIp}`
+  const rateData = (global as any).rateLimits?.[rateKey] || { count: 0, reset: now + 60*1000 }
+  if (now > rateData.reset) {
+    rateData.count = 0
+    rateData.reset = now + 60*1000
+  }
+  if (rateData.count >= 5) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+  }
+  rateData.count++
+  ;(global as any).rateLimits ||= {}
+  ;(global as any).rateLimits[rateKey] = rateData
 
   const openai = process.env.OPENAI_API_KEY ? new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -24,17 +40,27 @@ export async function POST(req: NextRequest) {
     const transcriptionText = formData.get('transcription') as string || ''
     const sender = formData.get('sender') || 'Inconnu'
     
-    // RATE LIMIT simple (memory, prod use Upstash)
-    const now = Date.now()
-    const clientIp = req.headers.get('x-forwarded-for') || 'anonymous'
-    // ... rate limit logic
-
-    // Upload audio to Supabase Storage
-    const fileExt = file.name.split('.').pop()
+    // File validation
+    const bytes = await file.arrayBuffer()
+    const fileSize = bytes.byteLength
+    if (fileSize > 10 * 1024 * 1024) {
+      return NextResponse.json({ error: 'File too large (max 10MB)' }, { status: 400 })
+    }
+    const audioBuffer = Buffer.from(bytes)
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'webm'
+    if (!['webm', 'mp3', 'wav', 'm4a'].includes(fileExt)) {
+      return NextResponse.json({ error: 'Unsupported audio format' }, { status: 400 })
+    }
+    
+    // Upload
     const fileName = `${crypto.randomUUID()}.${fileExt}`
-    const { data, error } = await supabase.storage
+    const { data, error: uploadError } = await supabase.storage
       .from('voicemails')
-      .upload(fileName, Buffer.from(await file.arrayBuffer()))
+      .upload(fileName, audioBuffer, {
+        contentType: file.type || `audio/${fileExt}`
+      })
+
+    if (uploadError) throw uploadError
 
     if (error) throw error
 

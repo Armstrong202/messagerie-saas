@@ -8,11 +8,19 @@ import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 
 const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
+  email: z.string().email('Email invalide'),
+  password: z.string().min(6, 'Mot de passe trop court'),
+})
+
+const signupSchema = loginSchema.extend({
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Les mots de passe ne correspondent pas',
+  path: ['confirmPassword'],
 })
 
 type LoginForm = z.infer<typeof loginSchema>
+type SignupForm = z.infer<typeof signupSchema>
 
 interface AuthFormProps {
   type: 'login' | 'signup'
@@ -20,13 +28,18 @@ interface AuthFormProps {
 }
 
 export default function AuthForm({ type, onSuccess }: AuthFormProps) {
-const [loading, setLoading] = useState(false)
-const [serverError, setServerError] = useState('')
-const { register, handleSubmit, formState: { errors }, reset } = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema)
+  const [loading, setLoading] = useState(false)
+  const [serverError, setServerError] = useState('')
+  const schema = type === 'login' ? loginSchema : signupSchema
+  type FormData = z.infer<typeof schema>
+  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<FormData>({
+    resolver: zodResolver(schema)
   })
 
-  const onSubmit = async (data: LoginForm) => {
+  const password = watch('password' as any)
+  const confirmPassword = watch('confirmPassword' as any)
+
+  const onSubmit = async (data: FormData) => {
     setServerError('')
     if (!supabase) {
       setServerError('Supabase not configured')
@@ -34,12 +47,12 @@ const { register, handleSubmit, formState: { errors }, reset } = useForm<LoginFo
     }
     setLoading(true)
     const { error, data: { user, session } } = type === 'login' 
-      ? await supabase.auth.signInWithPassword(data)
+      ? await supabase.auth.signInWithPassword({ email: data.email, password: data.password })
       : await supabase.auth.signUp({ email: data.email, password: data.password })
     setLoading(false)
     if (error) setServerError(error.message)
     else if (type === 'signup') {
-      setServerError('Check your email for confirmation link!')
+      setServerError('Vérifiez votre email pour confirmer!')
       reset()
     } else onSuccess()
   }
@@ -68,6 +81,17 @@ const { register, handleSubmit, formState: { errors }, reset } = useForm<LoginFo
         />
         {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>}
       </div>
+      {type === 'signup' && (
+        <div>
+          <label className="block text-sm font-medium mb-1">Confirmer mot de passe</label>
+          <input 
+            type="password" 
+            {...register('confirmPassword')} 
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" 
+          />
+          {errors.confirmPassword && <p className="mt-1 text-sm text-red-600">{errors.confirmPassword?.message}</p>}
+        </div>
+      )}
       <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600">
         {loading ? (
           <span className="flex items-center justify-center">
