@@ -26,12 +26,17 @@ export async function POST(req: NextRequest) {
     // Optional: OpenAI transcription
     let finalTranscription = transcriptionText
     if (openai) {
-      const transcription = await openai.audio.transcriptions.create({
-        file,
-        model: 'whisper-1',
-        language: 'fr',
-      })
-      finalTranscription = transcription.text
+      try {
+        const transcription = await openai.audio.transcriptions.create({
+          file,
+          model: 'whisper-1',
+          language: 'fr',
+        })
+        finalTranscription = transcription.text
+      } catch (transError) {
+        console.error('OpenAI transcription failed:', transError)
+        // Fallback to manual transcription
+      }
     }
 
     // Save to DB
